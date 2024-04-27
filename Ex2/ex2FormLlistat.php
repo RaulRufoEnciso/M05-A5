@@ -8,40 +8,12 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65" crossorigin="anonymous">
 </head>
 
-<?php 
-
-$servername = "bbdd.martamillanlom.cat";
-$username = "ddb193275";
-$password = "bbddTest12!%";
-$dbname = "ddb193275";
-
-$conn = new mysqli($servername, $username, $password, $dbname);
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
-}
-
-$sql = "SELECT * FROM productes";
-
-$result = $conn->query($sql);
-
-$array = array();
-
-if ($result->num_rows > 0) {
-    while($row = $result->fetch_assoc()) {
-        array_push($array, array("id" =>$row["id"], "nom"=>$row["nom"]));            
-    }
-} else {
-    echo "0 results";
-}
-
-$conn->close();
-?>
 <body class="container mt-5 w-80">
     <div class="row">
         <div class="col">
             <h2 class="mb-3">Formulari</h2>
 
-            <form action="ex2AddEdit.php" method="POST">
+            <form id="productForm" method="POST">
                 <div class="form-group mb-2">
                     <input type="text" class="form-control" id="nomProducte" name="nomProducte" placeholder="Nom" value="">
                 </div>
@@ -63,46 +35,74 @@ $conn->close();
                     </tr>
                 </thead>
                 
-                <tbody>
-                    <?php
-                        for($i=0; $i<sizeof($array); $i++){
-                            echo '<tr>
-                                        <th scope="row">' . $array[$i]["id"] . '</th>
-                                        <td>' . $array[$i]["nom"] . '</td>
-                                        <td><p idProd="' . $array[$i]["id"] . '" class="btnEdit btn btn-outline-info">Edit</p></td>
-                                        <td><a href="" class="btn btn-outline-danger">Remove</a></td>
-                                    </tr>';
-                        }  
-                    ?>
+                <tbody id="productList">
+                    <!-- Aquí se mostrarán los productos -->
                 </tbody>
             </table>
         </div>
     </div>
 
     <script>
-        let btnEdit = document.querySelectorAll(".btnEdit");
-        btnEdit.forEach(el=>{
-            el.addEventListener("click", function(){
+        document.addEventListener('DOMContentLoaded', function() {
+            // Función para cargar la lista de productos
+            function loadProductList() {
+                fetch('getProducte.php')
+                .then(response => response.json())
+                .then(data => {
+                    const productList = document.getElementById('productList');
+                    productList.innerHTML = ''; // Limpiamos la lista antes de agregar los productos
 
-                let formData = new FormData();
-                formData.append("id", this.getAttribute("idProd"));
+                    data.forEach(product => {
+                        const row = `
+                            <tr>
+                                <th scope="row">${product.id}</th>
+                                <td>${product.nom}</td>
+                                <td><button class="btnEdit btn btn-outline-info" idProd="${product.id}">Edit</button></td>
+                                <td><button class="btn btn-outline-danger">Remove</button></td>
+                            </tr>
+                        `;
+                        productList.innerHTML += row;
+                    });
 
-                let options = {
-                        method: 'POST',
-                        body: formData
-                    }
-
-                fetch("getProducte.php", options)
-                .then((response) => response.json())
-                .then((data) => {
-                    console.log(data);
-                    document.getElementById("nomProducte").value = data.nom;
-                    document.getElementById("addEdit").value = data.addEdit;
+                    // Event listener para el botón de Edit
+                    const btnEdit = document.querySelectorAll('.btnEdit');
+                    btnEdit.forEach(btn => {
+                        btn.addEventListener('click', function() {
+                            const productId = this.getAttribute('idProd');
+                            fetch(`getProducte.php?id=${productId}`)
+                            .then(response => response.json())
+                            .then(data => {
+                                document.getElementById('nomProducte').value = data.nom;
+                                document.getElementById('addEdit').value = data.addEdit;
+                            })
+                            .catch(error => console.error('Error:', error));
+                        });
+                    });
                 })
-                .catch((error) => {});
+                .catch(error => console.error('Error:', error));
+            }
 
-            })
-        })
+            // Cargar la lista de productos al cargar la página
+            loadProductList();
+
+            // Event listener para el formulario de producto
+            document.getElementById('productForm').addEventListener('submit', function(event) {
+                event.preventDefault(); // Evitar que el formulario se envíe por método tradicional
+
+                const formData = new FormData(this);
+
+                fetch('ex2AddEdit.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.text())
+                .then(data => {
+                    console.log(data); // Muestra la respuesta del servidor en la consola
+                    loadProductList(); // Recargar la lista de productos después de agregar/editar
+                })
+                .catch(error => console.error('Error:', error));
+            });
+        });
     </script>
 </body>
 </html>
